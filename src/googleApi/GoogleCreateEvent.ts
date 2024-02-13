@@ -3,12 +3,9 @@ import type { GoogleEvent } from "./types";
 // import { createNotice } from "../helper/NoticeHelper";
 // import { callRequest } from "src/helper/RequestWrapper";
 // import { settingsAreCompleteAndLoggedIn } from "../view/GoogleCalendarSettingTab";
-import GoogleEventPlugin from "../../main";
+import GoogleEventsPlugin from "../../main";
 import { GoogleApiError } from "./GoogleApiError";
-import {
-  callRequest,
-  settingsAreCompleteAndLoggedIn,
-} from "./common";
+import { callRequest, settingsAreCompleteAndLoggedIn } from "./common";
 
 function dateToGoogleDate(date: string): string {
   return new Date(date).toISOString().substr(0, 10);
@@ -27,7 +24,7 @@ function dateTimeToGoogleDateTime(date: string): string {
 export async function googleCreateEvent(
   event: GoogleEvent | any
 ): Promise<GoogleEvent> {
-  const plugin = GoogleEventPlugin.instance;
+  const plugin = GoogleEventsPlugin.instance;
 
   if (event.start.date) {
     event.start.date = dateToGoogleDate(event.start.date);

@@ -1,20 +1,7 @@
-import {
-  App,
-  // Editor,
-  // MarkdownView,
-  // Modal,
-  // Notice,
-  Plugin,
-  PluginSettingTab,
-  Setting,
-  TFile,
-} from "obsidian";
-import { EVENTS_VIEW_VIEW_TYPE, EventsView } from "src/EventsView";
-import { LoginGoogle } from "src/googleApi/GoogleAuth";
+import { Plugin, TFile } from "obsidian";
+import { EVENTS_VIEW_VIEW_TYPE, EventsView } from "src/views/EventsView";
 import { listCalendars } from "src/googleApi/GoogleListCalendars";
-import { settingsAreCompleteAndLoggedIn } from "src/googleApi/common";
-// import { LoginGoogle } from "src/GoogleAuth";
-import { refreshToken, accessToken, expirationTime } from "src/state";
+import { SettingTab } from "src/views/SettingsTab";
 
 interface PluginSettings {
   // useCustomClient: boolean;
@@ -33,13 +20,13 @@ const DEFAULT_SETTINGS: PluginSettings = {
   defaultCalendar: "",
 };
 
-export default class GoogleEventPlugin extends Plugin {
-  static instance: GoogleEventPlugin;
+export default class GoogleEventsPlugin extends Plugin {
+  static instance: GoogleEventsPlugin;
   settings: PluginSettings;
   settingsTab: SettingTab;
 
   async onload() {
-    GoogleEventPlugin.instance = this;
+    GoogleEventsPlugin.instance = this;
     await this.loadSettings();
 
     // this.registerMarkdownCodeBlockProcessor("csv", (source, el, ctx) => {
@@ -204,91 +191,3 @@ export default class GoogleEventPlugin extends Plugin {
 // 		contentEl.empty();
 // 	}
 // }
-
-class SettingTab extends PluginSettingTab {
-  plugin: GoogleEventPlugin;
-
-  constructor(app: App, plugin: GoogleEventPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const { containerEl } = this;
-    const isLoggedIn = refreshToken();
-
-    containerEl.empty();
-
-    new Setting(containerEl)
-      .setName("ClientId")
-      .setDesc("Google client id")
-      // .setClass("SubSettings")
-      .addText((text) =>
-        text
-          .setPlaceholder("Enter your client id")
-          .setValue(this.plugin.settings.googleClientId)
-          .onChange(async (value) => {
-            this.plugin.settings.googleClientId = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("ClientSecret")
-      .setDesc("Google client secret")
-      // .setClass("SubSettings")
-      .addText((text) =>
-        text
-          .setPlaceholder("Enter your client secret")
-          .setValue(this.plugin.settings.googleClientSecret)
-          .onChange(async (value) => {
-            this.plugin.settings.googleClientSecret = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("Login with google")
-      .addButton((button) => {
-        button.setButtonText(isLoggedIn ? "Logout" : "Login").onClick(() => {
-          if (isLoggedIn) {
-            refreshToken("");
-            accessToken("");
-            expirationTime(0);
-            this.hide();
-            this.display();
-          } else {
-            // if (Platform.isMobileApp) {
-            // 	if (this.plugin.settings.useCustomClient) {
-            // 		StartLoginGoogleMobile();
-            // 	} else {
-            // 		window.open(
-            // 			`${this.plugin.settings.googleOAuthServer}/api/google`
-            // 		);
-            // 	}
-            // } else {
-            LoginGoogle();
-            // }
-          }
-        });
-      });
-
-    if (settingsAreCompleteAndLoggedIn()) {
-      new Setting(containerEl)
-        .setName("Default Calendar")
-        .addDropdown(async (dropdown) => {
-          dropdown.addOption("Default", "Select a calendar");
-          const calendars = await listCalendars();
-
-          calendars.forEach((calendar) => {
-            dropdown.addOption(calendar.id, calendar.summary);
-          });
-          dropdown.setValue(this.plugin.settings.defaultCalendar);
-          dropdown.onChange(async (value) => {
-            this.plugin.settings.defaultCalendar = value;
-            await this.plugin.saveSettings();
-          });
-        });
-    }
-  }
-}

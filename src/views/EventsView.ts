@@ -1,13 +1,13 @@
 import { ItemView, Setting, WorkspaceLeaf } from "obsidian";
-import { googleCreateEvent } from "./googleApi/GoogleCreateEvent";
-import { listCalendars } from "./googleApi/GoogleListCalendars";
-import GoogleEventPlugin from "main";
-import { createNotice } from "./googleApi/common";
-import { GoogleApiError } from "./googleApi/GoogleApiError";
+import { googleCreateEvent } from "../googleApi/GoogleCreateEvent";
+import { listCalendars } from "../googleApi/GoogleListCalendars";
+import GoogleEventsPlugin from "main";
+import { createNotice } from "../googleApi/common";
+import { GoogleApiError } from "../googleApi/GoogleApiError";
 import {
   getEventsForPath,
   googleListEvents,
-} from "./googleApi/GoogleListEvents";
+} from "../googleApi/GoogleListEvents";
 
 export const EVENTS_VIEW_VIEW_TYPE = "google-events-view";
 
@@ -30,7 +30,7 @@ export class EventsView extends ItemView {
       description: "Description",
       start: { date: new Date().toLocaleDateString() },
       end: { date: new Date().toLocaleDateString() },
-      parent: { id: GoogleEventPlugin.instance.settings.defaultCalendar },
+      parent: { id: GoogleEventsPlugin.instance.settings.defaultCalendar },
     };
     this.newEvent = { ...this.defaultNewEvent };
   }
@@ -53,7 +53,7 @@ export class EventsView extends ItemView {
 
     const events = await getEventsForPath(
       this.getActiveFilePath(),
-      GoogleEventPlugin.instance.settings.defaultCalendar
+      GoogleEventsPlugin.instance.settings.defaultCalendar
     );
     if (events.length === 0) {
       this.containerEl.createEl("small", { text: "No Events" });
@@ -116,19 +116,6 @@ export class EventsView extends ItemView {
             this.newEvent.description = value.trim();
           })
       );
-    // new Setting(this.containerEl)
-    //   .setName("Calendar")
-    //   .addDropdown(async (dropdown) => {
-    //     const calendars = await listCalendars();
-
-    //     calendars.forEach((calendar) => {
-    //       dropdown.addOption(calendar.id, calendar.summary);
-    //     });
-    //     dropdown.setValue(this.newEvent.parent.id);
-    //     dropdown.onChange(async (value) => {
-    //       this.newEvent.parent.id = value;
-    //     });
-    //   });
     new Setting(this.containerEl)
       .setName("create event")
       .addButton((button) => {
