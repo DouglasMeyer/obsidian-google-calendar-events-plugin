@@ -1,10 +1,8 @@
 import type {
-	EventCacheValue,
-	GoogleCalendar,
-	GoogleEvent,
-	ListOptions,
-	// GoogleEventList,
-	// ListOptions,
+  EventCacheValue,
+  GoogleCalendar,
+  GoogleEvent,
+  ListOptions,
 } from "./types";
 
 import GoogleEventsPlugin from "main";
@@ -14,14 +12,14 @@ import { googleListCalendars } from "./GoogleListCalendars";
 // import _ from "lodash"
 // import { settingsAreCompleteAndLoggedIn } from "../view/GoogleCalendarSettingTab";
 import {
-	allColorNames,
-	getColorNameFromEvent,
+  allColorNames,
+  getColorNameFromEvent,
 } from "../googleApi/GoogleColors";
 import { GoogleApiError } from "./GoogleApiError";
 import {
-	callRequest,
-	createNotice,
-	settingsAreCompleteAndLoggedIn,
+  callRequest,
+  createNotice,
+  settingsAreCompleteAndLoggedIn,
 } from "./common";
 
 const cachedEvents = new Map<string, EventCacheValue>();
@@ -30,7 +28,7 @@ const cachedEvents = new Map<string, EventCacheValue>();
  * Function to clear the complete event cache to force new request
  */
 export function googleClearCachedEvents(): void {
-	cachedEvents.clear();
+  cachedEvents.clear();
 }
 
 /**
@@ -40,115 +38,115 @@ export function googleClearCachedEvents(): void {
  * @returns A list of GoogleCalendarEvents
  */
 export async function googleListEvents({
-	startDate,
-	endDate,
-	exclude,
-	include,
+  startDate,
+  endDate,
+  exclude,
+  include,
 }: ListOptions = {}): Promise<GoogleEvent[]> {
-	const plugin = GoogleEventsPlugin.instance;
+  const plugin = GoogleEventsPlugin.instance;
 
-	//Make sure there is a start date
-	if (!startDate) {
-		startDate = window.moment();
-	}
-	startDate = startDate.startOf("day");
+  //Make sure there is a start date
+  if (!startDate) {
+    startDate = window.moment();
+  }
+  startDate = startDate.startOf("day");
 
-	//Make sure there is a end date
-	if (!endDate) {
-		endDate = startDate.clone();
-	}
-	endDate = endDate.endOf("day");
+  //Make sure there is a end date
+  if (!endDate) {
+    endDate = startDate.clone();
+  }
+  endDate = endDate.endOf("day");
 
-	//Get all calendars not on the black list
-	let calendarList = await googleListCalendars();
+  //Get all calendars not on the black list
+  let calendarList = await googleListCalendars();
 
-	const [includeCalendars, includeColors] = (include ?? []).reduce(
-		([pass, fail], elem) => {
-			return !allColorNames.includes(elem)
-				? [[...pass, elem], fail]
-				: [pass, [...fail, elem]];
-		},
-		[[], []]
-	);
+  const [includeCalendars, includeColors] = (include ?? []).reduce(
+    ([pass, fail], elem) => {
+      return !allColorNames.includes(elem)
+        ? [[...pass, elem], fail]
+        : [pass, [...fail, elem]];
+    },
+    [[], []]
+  );
 
-	const [excludeCalendars, excludeColors] = (exclude ?? []).reduce(
-		([pass, fail], elem) => {
-			return !allColorNames.includes(elem)
-				? [[...pass, elem], fail]
-				: [pass, [...fail, elem]];
-		},
-		[[], []]
-	);
+  const [excludeCalendars, excludeColors] = (exclude ?? []).reduce(
+    ([pass, fail], elem) => {
+      return !allColorNames.includes(elem)
+        ? [[...pass, elem], fail]
+        : [pass, [...fail, elem]];
+    },
+    [[], []]
+  );
 
-	//Get the list of calendars that should be queried
-	if (includeCalendars.length) {
-		calendarList = calendarList.filter(
-			(calendar: GoogleCalendar) =>
-				includeCalendars.contains(calendar.id) ||
-				includeCalendars.contains(calendar.summary)
-		);
-	} else if (excludeCalendars.length) {
-		calendarList = calendarList.filter(
-			(calendar: GoogleCalendar) =>
-				!(
-					excludeCalendars.contains(calendar.id) ||
-					excludeCalendars.contains(calendar.summary)
-				)
-		);
-	}
+  //Get the list of calendars that should be queried
+  if (includeCalendars.length) {
+    calendarList = calendarList.filter(
+      (calendar: GoogleCalendar) =>
+        includeCalendars.contains(calendar.id) ||
+        includeCalendars.contains(calendar.summary)
+    );
+  } else if (excludeCalendars.length) {
+    calendarList = calendarList.filter(
+      (calendar: GoogleCalendar) =>
+        !(
+          excludeCalendars.contains(calendar.id) ||
+          excludeCalendars.contains(calendar.summary)
+        )
+    );
+  }
 
-	//Get Events from calendars
-	let eventList: GoogleEvent[] = [];
-	for (let i = 0; i < calendarList.length; i++) {
-		const events = await googleListEventsByCalendar(
-			plugin,
-			calendarList[i],
-			startDate,
-			endDate,
-			includeColors,
-			excludeColors
-		);
+  //Get Events from calendars
+  let eventList: GoogleEvent[] = [];
+  for (let i = 0; i < calendarList.length; i++) {
+    const events = await googleListEventsByCalendar(
+      plugin,
+      calendarList[i],
+      startDate,
+      endDate,
+      includeColors,
+      excludeColors
+    );
 
-		eventList = [...eventList, ...events];
-	}
+    eventList = [...eventList, ...events];
+  }
 
-	// //Sort because multi day requests will only sort by date
-	// eventList = _.orderBy(
-	// 	eventList,
-	// 	[
-	// 		(event: GoogleEvent) =>
-	// 			new Date(event.start.date || event.start.dateTime!),
-	// 	],
-	// 	"asc"
-	// );
+  // //Sort because multi day requests will only sort by date
+  // eventList = _.orderBy(
+  // 	eventList,
+  // 	[
+  // 		(event: GoogleEvent) =>
+  // 			new Date(event.start.date || event.start.dateTime!),
+  // 	],
+  // 	"asc"
+  // );
 
-	return eventList;
+  return eventList;
 }
 
-export async function listEvents(listOptions = {}): Promise<GoogleEvent[]> {
-	try {
-		const response = await googleListEvents(listOptions);
-		return response;
-	} catch (error) {
-		if (!(error instanceof GoogleApiError)) {
-			return [];
-		}
+// export async function listEvents(listOptions = {}): Promise<GoogleEvent[]> {
+// 	try {
+// 		const response = await googleListEvents(listOptions);
+// 		return response;
+// 	} catch (error) {
+// 		if (!(error instanceof GoogleApiError)) {
+// 			return [];
+// 		}
 
-		switch (error.status) {
-			case 401:
-				break;
-			case 999:
-				createNotice(error.message);
-				break;
-			default:
-				createNotice(`Google Events could not be loaded.`);
-				console.error("[GoogleCalendar]", error);
-				break;
-		}
+// 		switch (error.status) {
+// 			case 401:
+// 				break;
+// 			case 999:
+// 				createNotice(error.message);
+// 				break;
+// 			default:
+// 				createNotice(`Google Events could not be loaded.`);
+// 				console.error("[GoogleCalendar]", error);
+// 				break;
+// 		}
 
-		return [];
-	}
-}
+// 		return [];
+// 	}
+// }
 
 // ===============================================================================
 // =================== HELPER Functions to make to list events ===================
@@ -163,51 +161,82 @@ export async function listEvents(listOptions = {}): Promise<GoogleEvent[]> {
  * @returns
  */
 async function requestEventsFromApi(
-	GoogleCalendar: GoogleCalendar,
-	startString: string,
-	endString: string
+  GoogleCalendar: GoogleCalendar,
+  startString: string,
+  endString: string
 ): Promise<GoogleEvent[]> {
-	if (!settingsAreCompleteAndLoggedIn()) {
-		throw new GoogleApiError("Not logged in", null, 401, {
-			error: "Not logged in",
-		});
-	}
+  if (!settingsAreCompleteAndLoggedIn()) {
+    throw new GoogleApiError("Not logged in", null, 401, {
+      error: "Not logged in",
+    });
+  }
 
-	let tmpRequestResult: GoogleEventList;
-	const resultSizes = 2500;
-	let totalEventList: GoogleEvent[] = [];
-	do {
-		let url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-			GoogleCalendar.id
-		)}/events?`;
-		url += `maxResults=${resultSizes}`;
-		url += `&futureevents=true`;
-		url += `&singleEvents=true`;
-		url += `&orderby=starttime`;
-		url += `&sortorder=ascending`;
-		url += `&timeMin=${startString}`;
-		url += `&timeMax=${endString}`;
+  let tmpRequestResult: GoogleEventList;
+  const resultSizes = 2500;
+  let totalEventList: GoogleEvent[] = [];
+  do {
+    let url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      GoogleCalendar.id
+    )}/events?`;
+    url += `maxResults=${resultSizes}`;
+    url += `&futureevents=true`;
+    url += `&singleEvents=true`;
+    url += `&orderby=starttime`;
+    url += `&sortorder=ascending`;
+    url += `&timeMin=${startString}`;
+    url += `&timeMax=${endString}`;
 
-		if (tmpRequestResult && tmpRequestResult.nextPageToken) {
-			url += `&pageToken=${tmpRequestResult.nextPageToken}`;
-		}
+    if (tmpRequestResult && tmpRequestResult.nextPageToken) {
+      url += `&pageToken=${tmpRequestResult.nextPageToken}`;
+    }
 
-		tmpRequestResult = await callRequest(url, "GET", null);
+    tmpRequestResult = await callRequest(url, "GET", null);
 
-		const newList = tmpRequestResult.items.filter(
-			(event: { parent: GoogleCalendar; status: string }) => {
-				event.parent = GoogleCalendar;
-				return event.status != "cancelled";
-			}
-		);
+    const newList = tmpRequestResult.items.filter(
+      (event: { parent: GoogleCalendar; status: string }) => {
+        event.parent = GoogleCalendar;
+        return event.status != "cancelled";
+      }
+    );
 
-		totalEventList = [...totalEventList, ...newList];
-	} while (
-		tmpRequestResult.items.length == resultSizes &&
-		tmpRequestResult.nextPageToken
-	);
+    totalEventList = [...totalEventList, ...newList];
+  } while (
+    tmpRequestResult.items.length == resultSizes &&
+    tmpRequestResult.nextPageToken
+  );
 
-	return totalEventList;
+  return totalEventList;
+}
+
+export async function getEventsForPath(
+  path: string,
+  calendarId: string
+): Promise<Array<GoogleEvent>> {
+  let tmpRequestResult;
+  const resultSizes = 50;
+  // const startString = new Date().toISOString();
+  let url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+    calendarId
+  )}/events?`;
+  url += `sharedExtendedProperty=${encodeURIComponent(
+    `obsidianPlugin_gcalEvents_path=${path}`
+  )}`;
+  url += `&maxResults=${resultSizes}`;
+  // url += `&futureevents=true`;
+  // url += `&singleEvents=true`;
+  // url += `&orderby=starttime`;
+  url += `&sortorder=ascending`;
+  // url += `&timeMin=${startString}`;
+  // url += `&timeMax=${endString}`;
+
+  // if (tmpRequestResult && tmpRequestResult.nextPageToken) {
+  //   url += `&pageToken=${tmpRequestResult.nextPageToken}`;
+  // }
+
+  console.log(url);
+  tmpRequestResult = await callRequest(url, "GET", null);
+
+  return tmpRequestResult.items;
 }
 
 // /**
@@ -305,55 +334,55 @@ async function requestEventsFromApi(
 
 // Check if the range if events is already cached
 function checkForCachedEvents(
-	plugin: GoogleEventsPlugin,
-	GoogleCalendar: GoogleCalendar,
-	startDate: moment.Moment,
-	endDate: moment.Moment
+  plugin: GoogleEventsPlugin,
+  GoogleCalendar: GoogleCalendar,
+  startDate: moment.Moment,
+  endDate: moment.Moment
 ): GoogleEvent[] | null {
-	const currentDate = startDate.clone();
-	let cachedEventList: GoogleEvent[] = [];
+  const currentDate = startDate.clone();
+  let cachedEventList: GoogleEvent[] = [];
 
-	// Loop through all days and check if there is a cached result
-	while (currentDate <= endDate) {
-		const cacheKey: string = JSON.stringify({
-			day: currentDate.format("YYYY-MM-DD"),
-			calendar: GoogleCalendar.id,
-		});
+  // Loop through all days and check if there is a cached result
+  while (currentDate <= endDate) {
+    const cacheKey: string = JSON.stringify({
+      day: currentDate.format("YYYY-MM-DD"),
+      calendar: GoogleCalendar.id,
+    });
 
-		// Check if there is a day missing in the cache
-		if (!cachedEvents.has(cacheKey)) {
-			return null;
-		}
+    // Check if there is a day missing in the cache
+    if (!cachedEvents.has(cacheKey)) {
+      return null;
+    }
 
-		const useCustomClient = true;
-		let settings_refreshInterval = 10;
-		if (
-			// !plugin.settings.useCustomClient &&
-			!useCustomClient &&
-			settings_refreshInterval < 60
-		) {
-			settings_refreshInterval = 60;
-		}
+    const useCustomClient = true;
+    let settings_refreshInterval = 10;
+    if (
+      // !plugin.settings.useCustomClient &&
+      !useCustomClient &&
+      settings_refreshInterval < 60
+    ) {
+      settings_refreshInterval = 60;
+    }
 
-		// Get the cached events and check if they are still valid
-		const { events, updated } = cachedEvents.get(cacheKey);
-		if (
-			updated
-				.clone()
-				.add(settings_refreshInterval, "second")
-				.isBefore(window.moment())
-		) {
-			return null;
-		}
+    // Get the cached events and check if they are still valid
+    const { events, updated } = cachedEvents.get(cacheKey);
+    if (
+      updated
+        .clone()
+        .add(settings_refreshInterval, "second")
+        .isBefore(window.moment())
+    ) {
+      return null;
+    }
 
-		// Add the events to the list
-		cachedEventList = [...cachedEventList, ...events];
+    // Add the events to the list
+    cachedEventList = [...cachedEventList, ...events];
 
-		// Check the next day
-		currentDate.add(1, "day");
-	}
+    // Check the next day
+    currentDate.add(1, "day");
+  }
 
-	return cachedEventList;
+  return cachedEventList;
 }
 
 /**
@@ -365,117 +394,111 @@ function checkForCachedEvents(
  * @returns a list of Google Events
  */
 async function googleListEventsByCalendar(
-	plugin: GoogleEventsPlugin,
-	GoogleCalendar: GoogleCalendar,
-	startDate: moment.Moment,
-	endDate: moment.Moment,
-	includeColors: string[] = [],
-	excludeColors: string[] = []
+  plugin: GoogleEventsPlugin,
+  GoogleCalendar: GoogleCalendar,
+  startDate: moment.Moment,
+  endDate: moment.Moment,
+  includeColors: string[] = [],
+  excludeColors: string[] = []
 ): Promise<GoogleEvent[]> {
-	//Check if the events are already cached and return them if they are
-	const alreadyCachedEvents = checkForCachedEvents(
-		plugin,
-		GoogleCalendar,
-		startDate,
-		endDate
-	);
-	if (alreadyCachedEvents) {
-		return alreadyCachedEvents.filter((indexEvent: GoogleEvent) => {
-			if (includeColors.length > 0) {
-				return includeColors.includes(
-					getColorNameFromEvent(indexEvent)
-				);
-			}
-			if (excludeColors.length > 0) {
-				return !excludeColors.includes(
-					getColorNameFromEvent(indexEvent)
-				);
-			}
-			return true;
-		});
-	}
+  //Check if the events are already cached and return them if they are
+  const alreadyCachedEvents = checkForCachedEvents(
+    plugin,
+    GoogleCalendar,
+    startDate,
+    endDate
+  );
+  if (alreadyCachedEvents) {
+    return alreadyCachedEvents.filter((indexEvent: GoogleEvent) => {
+      if (includeColors.length > 0) {
+        return includeColors.includes(getColorNameFromEvent(indexEvent));
+      }
+      if (excludeColors.length > 0) {
+        return !excludeColors.includes(getColorNameFromEvent(indexEvent));
+      }
+      return true;
+    });
+  }
 
-	//Get the events because cache was no option
-	const totalEventList: GoogleEvent[] = await requestEventsFromApi(
-		GoogleCalendar,
-		startDate.toISOString(),
-		endDate.toISOString()
-	);
+  //Get the events because cache was no option
+  const totalEventList: GoogleEvent[] = await requestEventsFromApi(
+    GoogleCalendar,
+    startDate.toISOString(),
+    endDate.toISOString()
+  );
 
-	// //Filter out events with ignore pattern
-	// // Ignore this if no ignore list is set
-	// if (plugin.settings.ignorePatternList.length > 0) {
-	// 	totalEventList = totalEventList.filter(
-	// 		(event) =>
-	// 			!plugin.settings.ignorePatternList.some((ignoreText) => {
-	// 				// Check if the ignore text is a regex pattern
-	// 				if (
-	// 					ignoreText.startsWith("/") &&
-	// 					ignoreText.endsWith("/")
-	// 				) {
-	// 					const regex = new RegExp(ignoreText.slice(1, -1));
-	// 					return (
-	// 						regex.test(event.summary) ||
-	// 						regex.test(event.description)
-	// 					);
-	// 				}
-	// 				return (
-	// 					event.description?.includes(ignoreText) ||
-	// 					event.summary?.includes(ignoreText)
-	// 				);
-	// 			})
-	// 	);
-	// }
+  // //Filter out events with ignore pattern
+  // // Ignore this if no ignore list is set
+  // if (plugin.settings.ignorePatternList.length > 0) {
+  // 	totalEventList = totalEventList.filter(
+  // 		(event) =>
+  // 			!plugin.settings.ignorePatternList.some((ignoreText) => {
+  // 				// Check if the ignore text is a regex pattern
+  // 				if (
+  // 					ignoreText.startsWith("/") &&
+  // 					ignoreText.endsWith("/")
+  // 				) {
+  // 					const regex = new RegExp(ignoreText.slice(1, -1));
+  // 					return (
+  // 						regex.test(event.summary) ||
+  // 						regex.test(event.description)
+  // 					);
+  // 				}
+  // 				return (
+  // 					event.description?.includes(ignoreText) ||
+  // 					event.summary?.includes(ignoreText)
+  // 				);
+  // 			})
+  // 	);
+  // }
 
-	// FIXME: is this safe?
-	// //Turn multi day events into multiple events
-	// totalEventList = resolveMultiDayEventsHelper(
-	// 	totalEventList,
-	// 	startDate,
-	// 	endDate
-	// );
+  // FIXME: is this safe?
+  // //Turn multi day events into multiple events
+  // totalEventList = resolveMultiDayEventsHelper(
+  // 	totalEventList,
+  // 	startDate,
+  // 	endDate
+  // );
 
-	// // Group events by Day
-	// const groupedEvents = _.groupBy(totalEventList, (event: GoogleEvent) => {
-	// 	const startMoment = window.moment(
-	// 		event.start.dateTime ?? event.start.date
-	// 	);
-	// 	return startMoment.format("YYYY-MM-DD");
-	// });
-	const groupedEvents: { [key: string]: Array<GoogleEvent> } = {};
-	totalEventList.forEach((event) => {
-		const startMoment = window.moment(
-			event.start.dateTime ?? event.start.date
-		);
-		const key = startMoment.format("YYYY-MM-DD");
-		if (!groupedEvents[key]) groupedEvents[key] = [];
-		groupedEvents[key].push(event);
-	});
+  // // Group events by Day
+  // const groupedEvents = _.groupBy(totalEventList, (event: GoogleEvent) => {
+  // 	const startMoment = window.moment(
+  // 		event.start.dateTime ?? event.start.date
+  // 	);
+  // 	return startMoment.format("YYYY-MM-DD");
+  // });
+  const groupedEvents: { [key: string]: Array<GoogleEvent> } = {};
+  totalEventList.forEach((event) => {
+    const startMoment = window.moment(event.start.dateTime ?? event.start.date);
+    const key = startMoment.format("YYYY-MM-DD");
+    if (!groupedEvents[key]) groupedEvents[key] = [];
+    groupedEvents[key].push(event);
+  });
 
-	const currentDate = startDate.clone();
-	while (currentDate <= endDate) {
-		const formattedDate = currentDate.format("YYYY-MM-DD");
+  const currentDate = startDate.clone();
+  while (currentDate <= endDate) {
+    const formattedDate = currentDate.format("YYYY-MM-DD");
 
-		const cacheKey: string = JSON.stringify({
-			day: formattedDate,
-			calendar: GoogleCalendar.id,
-		});
-		cachedEvents.set(cacheKey, {
-			events: groupedEvents[formattedDate] || [],
-			updated: window.moment(),
-		});
+    const cacheKey: string = JSON.stringify({
+      day: formattedDate,
+      calendar: GoogleCalendar.id,
+    });
+    cachedEvents.set(cacheKey, {
+      events: groupedEvents[formattedDate] || [],
+      updated: window.moment(),
+    });
 
-		currentDate.add(1, "day");
-	}
+    currentDate.add(1, "day");
+  }
 
-	return totalEventList.filter((indexEvent: GoogleEvent) => {
-		if (indexEvent.eventType === "delete") return false;
-		if (includeColors.length > 0) {
-			return includeColors.includes(getColorNameFromEvent(indexEvent));
-		}
-		if (excludeColors.length > 0) {
-			return !excludeColors.includes(getColorNameFromEvent(indexEvent));
-		}
-		return true;
-	});
+  return totalEventList.filter((indexEvent: GoogleEvent) => {
+    if (indexEvent.eventType === "delete") return false;
+    if (includeColors.length > 0) {
+      return includeColors.includes(getColorNameFromEvent(indexEvent));
+    }
+    if (excludeColors.length > 0) {
+      return !excludeColors.includes(getColorNameFromEvent(indexEvent));
+    }
+    return true;
+  });
 }

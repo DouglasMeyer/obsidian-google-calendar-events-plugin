@@ -9,8 +9,10 @@ import {
   Setting,
   TFile,
 } from "obsidian";
+import { EVENTS_VIEW_VIEW_TYPE, EventsView } from "src/EventsView";
 import { LoginGoogle } from "src/googleApi/GoogleAuth";
 import { listCalendars } from "src/googleApi/GoogleListCalendars";
+import { settingsAreCompleteAndLoggedIn } from "src/googleApi/common";
 // import { LoginGoogle } from "src/GoogleAuth";
 import { refreshToken, accessToken, expirationTime } from "src/state";
 
@@ -20,6 +22,7 @@ interface PluginSettings {
   googleClientId: string;
   googleClientSecret: string;
   googleRefreshToken: string;
+  defaultCalendar: string;
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -27,6 +30,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   googleClientId: "",
   googleClientSecret: "",
   googleRefreshToken: "",
+  defaultCalendar: "",
 };
 
 export default class GoogleEventPlugin extends Plugin {
@@ -136,7 +140,36 @@ export default class GoogleEventPlugin extends Plugin {
     // this.registerEvent(this.app.vault.on("delete", this.onFileDeleted));
     // this.registerEvent(this.app.vault.on("modify", this.onFileModified));
     this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen));
+
+    this.registerView(EVENTS_VIEW_VIEW_TYPE, (leaf) => new EventsView(leaf));
+    if (this.app.workspace.layoutReady) {
+      this.initLeaf();
+    } else {
+      this.registerEvent(this.app.workspace.on("layout-ready", this.initLeaf));
+    }
+    this.addCommand({
+      id: "show-events-view",
+      name: "Open events view",
+      checkCallback: (checking: boolean) => {
+        if (checking) {
+          return (
+            this.app.workspace.getLeavesOfType(EVENTS_VIEW_VIEW_TYPE).length ===
+            0
+          );
+        }
+        this.initLeaf();
+      },
+    });
   }
+
+  initLeaf = () => {
+    if (this.app.workspace.getLeavesOfType(EVENTS_VIEW_VIEW_TYPE).length) {
+      return;
+    }
+    this.app.workspace.getRightLeaf(false).setViewState({
+      type: EVENTS_VIEW_VIEW_TYPE,
+    });
+  };
 
   onunload() {}
 
@@ -239,5 +272,23 @@ class SettingTab extends PluginSettingTab {
           }
         });
       });
+
+    if (settingsAreCompleteAndLoggedIn()) {
+      new Setting(containerEl)
+        .setName("Default Calendar")
+        .addDropdown(async (dropdown) => {
+          dropdown.addOption("Default", "Select a calendar");
+          const calendars = await listCalendars();
+
+          calendars.forEach((calendar) => {
+            dropdown.addOption(calendar.id, calendar.summary);
+          });
+          dropdown.setValue(this.plugin.settings.defaultCalendar);
+          dropdown.onChange(async (value) => {
+            this.plugin.settings.defaultCalendar = value;
+            await this.plugin.saveSettings();
+          });
+        });
+    }
   }
 }
