@@ -69,7 +69,7 @@ export class EventsView extends ItemView {
         div
           .createEl("button", {
             cls: "edit",
-            text: getIcon("pencil") || "edit",
+            text: getIcon("pencil") || ("edit" as any),
           })
           .onClickEvent(() => {
             new EventModal(this.app, event as any).open();
@@ -77,7 +77,7 @@ export class EventsView extends ItemView {
         div
           .createEl("button", {
             cls: "delete",
-            text: getIcon("trash-2") || "delete",
+            text: getIcon("trash-2") || ("delete" as any),
           })
           .onClickEvent(async () => {
             await googleDeleteEvent(event);

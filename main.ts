@@ -130,7 +130,9 @@ export default class GoogleEventsPlugin extends Plugin {
     if (this.app.workspace.layoutReady) {
       this.initLeaf();
     } else {
-      this.registerEvent(this.app.workspace.on("layout-ready", this.initLeaf));
+      this.registerEvent(
+        this.app.workspace.on("layout-ready" as any, this.initLeaf)
+      );
     }
     this.addCommand({
       id: "show-events-view",
