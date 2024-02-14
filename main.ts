@@ -1,10 +1,9 @@
-import { Plugin, TFile } from "obsidian";
+import { Plugin } from "obsidian";
 import { EVENTS_VIEW_VIEW_TYPE, EventsView } from "src/views/EventsView";
 import { listCalendars } from "src/googleApi/GoogleListCalendars";
 import { SettingTab } from "src/views/SettingsTab";
 
 interface PluginSettings {
-  // useCustomClient: boolean;
   googleOAuthServer: string;
   googleClientId: string;
   googleClientSecret: string;
@@ -126,7 +125,6 @@ export default class GoogleEventsPlugin extends Plugin {
     // this.registerEvent(this.app.vault.on("create", this.onFileCreated));
     // this.registerEvent(this.app.vault.on("delete", this.onFileDeleted));
     // this.registerEvent(this.app.vault.on("modify", this.onFileModified));
-    this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen));
 
     this.registerView(EVENTS_VIEW_VIEW_TYPE, (leaf) => new EventsView(leaf));
     if (this.app.workspace.layoutReady) {
@@ -167,27 +165,4 @@ export default class GoogleEventsPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
-
-  onFileOpen = (file: TFile) => {
-    // look for events
-    // console.log("onFileOpen");
-    // console.log("file", (window.file = file));
-    // console.log("app", (window.app = this.app));
-  };
 }
-
-// class SampleModal extends Modal {
-// 	constructor(app: App) {
-// 		super(app);
-// 	}
-
-// 	onOpen() {
-// 		const {contentEl} = this;
-// 		contentEl.setText('Woah!');
-// 	}
-
-// 	onClose() {
-// 		const {contentEl} = this;
-// 		contentEl.empty();
-// 	}
-// }

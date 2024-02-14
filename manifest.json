@@ -1,8 +1,10 @@
 {
-	"id": "obsidian-google-calendar-events-plugin",
-	"name": "Google Calendar Events Plugin",
-	"version": "0.0.1",
-	"minAppVersion": "0.15.0",
-	"description": "Obsidian plugin to embed google calendar events.",
-	"isDesktopOnly": false
+  "id": "obsidian-google-calendar-events-plugin",
+  "name": "Google Calendar Events Plugin",
+  "version": "0.0.1",
+  "minAppVersion": "0.15.0",
+  "description": "Obsidian plugin to embed google calendar events.",
+  "author": "Douglas Meyer",
+  "authorUrl": "https://douglas-meyer.name",
+  "isDesktopOnly": true
 }

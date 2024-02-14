@@ -1,39 +1,15 @@
-import { ItemView, Setting, WorkspaceLeaf } from "obsidian";
-import { googleCreateEvent } from "../googleApi/GoogleCreateEvent";
-import { listCalendars } from "../googleApi/GoogleListCalendars";
+import { ItemView, Setting, TFile, getIcon } from "obsidian";
 import GoogleEventsPlugin from "main";
-import { createNotice } from "../googleApi/common";
-import { GoogleApiError } from "../googleApi/GoogleApiError";
-import {
-  getEventsForPath,
-  googleListEvents,
-} from "../googleApi/GoogleListEvents";
+import { getEventsForPath } from "../googleApi/GoogleListEvents";
+import { GoogleEvent } from "src/googleApi/types";
+import { EventModal } from "./EventModal";
+import { googleDeleteEvent } from "src/googleApi/GoogleDeleteEvent";
 
 export const EVENTS_VIEW_VIEW_TYPE = "google-events-view";
 
-interface EventData {
-  summary: string;
-  description: string;
-  start: { date: string };
-  end: { date: string };
-  parent: { id: string };
-}
-
 export class EventsView extends ItemView {
-  defaultNewEvent: EventData;
-  newEvent: EventData;
-
-  constructor(leaf: WorkspaceLeaf) {
-    super(leaf);
-    this.defaultNewEvent = {
-      summary: "Summary",
-      description: "Description",
-      start: { date: new Date().toLocaleDateString() },
-      end: { date: new Date().toLocaleDateString() },
-      parent: { id: GoogleEventsPlugin.instance.settings.defaultCalendar },
-    };
-    this.newEvent = { ...this.defaultNewEvent };
-  }
+  activeFilePath: string | undefined;
+  activeFileEvents: Array<GoogleEvent> | null;
 
   getViewType() {
     return EVENTS_VIEW_VIEW_TYPE;
@@ -43,97 +19,97 @@ export class EventsView extends ItemView {
     return "Events view";
   }
 
-  getActiveFilePath() {
-    const path = this.app.workspace.getActiveFile()?.path;
-    return path || "unknown";
+  getIcon() {
+    return "calendar";
   }
 
-  async onOpen() {
-    this.containerEl.empty();
+  onload(): void {
+    this.registerEvent(this.app.workspace.on("file-open", this.onFileOpen));
+    this.onFileOpen(this.app.workspace.getActiveFile());
+  }
 
-    const events = await getEventsForPath(
-      this.getActiveFilePath(),
-      GoogleEventsPlugin.instance.settings.defaultCalendar
-    );
-    if (events.length === 0) {
-      this.containerEl.createEl("small", { text: "No Events" });
+  onFileOpen = async (file: TFile | null) => {
+    this.activeFilePath = file?.path;
+    if (this.activeFilePath) {
+      this.activeFileEvents = await getEventsForPath(
+        this.activeFilePath,
+        GoogleEventsPlugin.instance.settings.defaultCalendar
+      );
     } else {
-      console.log(events[0]);
+      this.activeFileEvents = null;
     }
-    for (const event of events) {
-      this.containerEl.createDiv({ cls: "CalendarCard" }, (div) => {
+    // re-render
+    this.onOpen();
+  };
+
+  async onOpen() {
+    this.contentEl.empty();
+
+    if (!this.activeFileEvents) {
+      this.contentEl.createEl("small", { text: "No active file" });
+      return;
+    }
+    if (this.activeFileEvents.length === 0) {
+      this.contentEl.createEl("small", { text: "No Events" });
+    }
+    // if (this.activeFileEvents.length > 0) {
+    //   console.log(this.activeFileEvents[0]);
+    // }
+    // TODO: hide past events
+    for (const event of this.activeFileEvents) {
+      this.contentEl.createDiv({ cls: "CalendarCard" }, (div) => {
         div.createEl("h3", { cls: "summary", text: event.summary });
+        // TODO: datetime
         let date = event.start.date;
         if (date !== event.end.date) {
           date += " - " + event.end.date;
         }
         div.createEl("small", { cls: "date", text: date });
         div.createEl("p", { cls: "description", text: event.description });
+        div
+          .createEl("button", {
+            cls: "edit",
+            text: getIcon("pencil") || "edit",
+          })
+          .onClickEvent(() => {
+            new EventModal(this.app, event as any).open();
+          });
+        div
+          .createEl("button", {
+            cls: "delete",
+            text: getIcon("trash-2") || "delete",
+          })
+          .onClickEvent(async () => {
+            await googleDeleteEvent(event);
+            const index = this.activeFileEvents?.indexOf(event);
+            if (index) this.activeFileEvents?.splice(index, 1);
+            // re-render
+            this.onOpen();
+          });
       });
     }
 
-    new Setting(this.containerEl)
-      .setName("Start")
-      .setDesc("start date")
-      .addText((text) =>
-        text
-          .setPlaceholder("mm/dd/yyyy")
-          .setValue(this.newEvent.start.date)
-          .onChange(async (value) => {
-            this.newEvent.start.date = value.trim();
-          })
-      );
-    new Setting(this.containerEl)
-      .setName("End")
-      .setDesc("end date")
-      .addText((text) =>
-        text
-          .setPlaceholder("mm/dd/yyyy")
-          .setValue(this.newEvent.end.date)
-          .onChange(async (value) => {
-            this.newEvent.end.date = value.trim();
-          })
-      );
-    new Setting(this.containerEl)
-      .setName("summary")
-      .setDesc("Summary")
-      .addText((text) =>
-        text
-          .setPlaceholder("Enter event summary")
-          .setValue(this.newEvent.summary)
-          .onChange(async (value) => {
-            this.newEvent.summary = value.trim();
-          })
-      );
-    new Setting(this.containerEl)
-      .setName("description")
-      .setDesc("Description")
-      .addTextArea((text) =>
-        text
-          .setPlaceholder("Enter event description")
-          .setValue(this.newEvent.description)
-          .onChange(async (value) => {
-            this.newEvent.description = value.trim();
-          })
-      );
-    new Setting(this.containerEl)
-      .setName("create event")
-      .addButton((button) => {
-        button.setButtonText("Create event").onClick(() => {
-          googleCreateEvent({
-            ...this.newEvent,
+    new Setting(this.contentEl).addButton((button) => {
+      button.setButtonText("Create event").onClick(() => {
+        if (this.activeFilePath) {
+          new EventModal(this.app, {
+            id: undefined,
+            summary: "Summary",
+            description: "Description",
+            start: { date: new Date().toLocaleDateString() },
+            end: { date: new Date().toLocaleDateString() },
+            parent: {
+              id: GoogleEventsPlugin.instance.settings.defaultCalendar,
+            },
             extendedProperties: {
               shared: {
-                obsidianPlugin_gcalEvents_path: this.getActiveFilePath(),
+                obsidianPlugin_gcalEvents_path: this.activeFilePath,
               },
             },
-          }).catch((error: GoogleApiError) => {
-            createNotice(error.message);
-          });
-          this.newEvent = { ...this.defaultNewEvent };
-          this.onOpen();
-        });
+          }).open();
+        }
       });
+    });
   }
 
   async onClose() {
